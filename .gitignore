@@ -1,0 +1,31 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python build and packaging artifacts
+build/
+dist/
+pip-wheel-metadata/
+*.egg-info/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated project outputs
+arduino-cli/
+out-*/
+graphify-out/
+.graphify_detect.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

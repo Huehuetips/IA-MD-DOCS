@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docs-md-pipeline"
+version = "0.1.0"
+description = "Pipeline to crawl documentation sites and export clean Markdown."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12.3",
+  "markdownify>=0.13.1",
+  "playwright>=1.54.0",
+  "PyYAML>=6.0.2",
+  "requests>=2.32.3",
+]
+
+[project.scripts]
+docs-md = "docs_md.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
