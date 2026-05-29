@@ -197,9 +197,12 @@ def infer_section(url: str) -> str:
 
 def infer_doc_type(url: str, headings: list[str]) -> str:
     lowered = " ".join(headings).lower()
-    if "/api/" in url or "endpoint" in lowered:
+    url_lower = url.lower()
+    if any(token in url_lower for token in ("/api/", ".wsdl", "?wsdl", ".asmx", "?op=", ".xml")):
         return "reference"
-    if "faq" in url or "faq" in lowered:
+    if "endpoint" in lowered:
+        return "reference"
+    if "faq" in url_lower or "faq" in lowered:
         return "faq"
     return "guide"
 
@@ -211,7 +214,7 @@ def summarize(title: str, markdown: str) -> str:
     return body or f"Documentation page for {title}."
 
 
-def is_low_value_document(markdown: str, headings: list[str]) -> bool:
+def is_low_value_document(markdown: str, headings: list[str], url: str = "", doc_type: str = "") -> bool:
     lines = [line.strip() for line in markdown.splitlines() if line.strip()]
     if not lines:
         return True
@@ -224,6 +227,12 @@ def is_low_value_document(markdown: str, headings: list[str]) -> bool:
         for line in lines
         if not line.startswith(("#", "[", "-", "*", "`")) and len(line.split()) >= 8
     )
+
+    url_lower = url.lower()
+    service_page = any(token in url_lower for token in (".asmx", ".wsdl", "?wsdl", "?op=", ".xml"))
+    reference_page = doc_type == "reference" or service_page
+    if reference_page:
+        return text_chars < 80 and heading_lines == 0 and link_lines == 0
 
     if text_chars < 250:
         return True

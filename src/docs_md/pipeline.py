@@ -19,7 +19,7 @@ from .extractor import MainContentExtractor
 from .fetcher import RequestsFetcher
 from .fetcher import PlaywrightFetcher
 from .models import ExtractedDocument, PipelineConfig
-from .utils import path_from_url, stable_hash
+from .utils import source_path_for_url, stable_hash
 from .writer import DocumentWriter
 
 
@@ -99,7 +99,7 @@ class DocumentationPipeline:
                         doc_type=cached.get("doc_type", infer_doc_type(page.url, headings)),
                         headings=cached.get("headings", headings),
                         summary=cached.get("summary", ""),
-                        source_path=path_from_url(page.url),
+                        source_path=source_path_for_url(page.url),
                         content_hash=cached.get("content_hash", ""),
                         source_hash=source_hash,
                     )
@@ -109,7 +109,8 @@ class DocumentationPipeline:
                 markdown = self.converter.convert(main_html)
                 markdown = self.cleaner.clean(markdown)
                 markdown = self.ai_cleaner.clean(markdown, title, page.url)
-                if is_low_value_document(markdown, headings):
+                doc_type = infer_doc_type(page.url, headings)
+                if is_low_value_document(markdown, headings, url=page.url, doc_type=doc_type):
                     logger.info("Documento descartado por bajo valor: %s", page.url)
                     continue
                 content_hash = stable_hash(markdown)
@@ -119,10 +120,10 @@ class DocumentationPipeline:
                     title=title,
                     markdown=markdown,
                     section=infer_section(page.url),
-                    doc_type=infer_doc_type(page.url, headings),
+                    doc_type=doc_type,
                     headings=headings,
                     summary=summarize(title, markdown),
-                    source_path=path_from_url(page.url),
+                    source_path=source_path_for_url(page.url),
                     content_hash=content_hash,
                     source_hash=source_hash,
                 )

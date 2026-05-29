@@ -25,6 +25,7 @@ arduino-cli/
 out-*/
 graphify-out/
 .graphify_detect.json
+/Caex_doc/
 
 # OS/editor noise
 .DS_Store

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .utils import canonicalize_url
+from .utils import canonicalize_url, site_origin
 
 
 @dataclass(slots=True)
@@ -34,6 +34,10 @@ class PipelineConfig:
     @property
     def domain(self) -> str:
         return urlparse(self.root_url).netloc
+
+    @property
+    def origin(self) -> str:
+        return site_origin(self.root_url)
 
 
 @dataclass(slots=True)

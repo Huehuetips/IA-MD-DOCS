@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, XMLParsedAsHTMLWarning
+
+from .utils import looks_like_xml
 
 
 MAIN_SELECTORS = [
@@ -34,7 +37,12 @@ logger = logging.getLogger(__name__)
 
 class MainContentExtractor:
     def extract(self, html: str) -> tuple[str, str, list[str]]:
-        soup = BeautifulSoup(html, "html.parser")
+        if looks_like_xml("", html):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+                soup = BeautifulSoup(html, "html.parser")
+        else:
+            soup = BeautifulSoup(html, "html.parser")
         self._remove_global_noise(soup)
         main = self._select_main_node(soup)
         title = self._extract_title(main if isinstance(main, Tag) else soup, soup)

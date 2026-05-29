@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import heapq
 import logging
+import warnings
 from xml.etree import ElementTree as ET
 from urllib.parse import urlparse
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 import requests
 
 from .models import DiscoveredPage, PipelineConfig
-from .utils import canonicalize_url, normalize_url
+from .utils import canonicalize_url, looks_like_xml, normalize_url
 
 
 logger = logging.getLogger(__name__)
@@ -74,9 +75,15 @@ class DocumentationCrawler:
             if not html:
                 continue
 
-            soup = BeautifulSoup(html, "html.parser")
-            for anchor in soup.select("a[href]"):
-                normalized = normalize_url(page.url, anchor.get("href"))
+            if looks_like_xml(page.url, html):
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+                    soup = BeautifulSoup(html, "html.parser")
+            else:
+                soup = BeautifulSoup(html, "html.parser")
+            for node in soup.select("a[href], link[href], area[href], form[action]"):
+                href = node.get("action") if node.name == "form" else node.get("href")
+                normalized = normalize_url(page.url, href)
                 if not normalized or normalized in seen:
                     continue
                 if self._should_visit(normalized):
@@ -158,6 +165,9 @@ class DocumentationCrawler:
         for token in ("tutorial", "guide", "reference", "example", "getting-started", "overview"):
             if token in url.lower():
                 score += 8
+        for token in ("asmx", "wsdl", "soap", "endpoint"):
+            if token in url.lower():
+                score += 12
         for token in ("retired", "legacy", "archive", "search", "tag", "category"):
             if token in url.lower():
                 score -= 20
@@ -165,10 +175,10 @@ class DocumentationCrawler:
 
     def _discover_sitemap_urls(self) -> list[str]:
         candidates = [
-            f"https://{self.config.domain}/robots.txt",
-            f"https://{self.config.domain}/sitemap.xml",
-            f"https://{self.config.domain}/sitemap_index.xml",
-            f"https://{self.config.domain}/sitemap-index.xml",
+            f"{self.config.origin}/robots.txt",
+            f"{self.config.origin}/sitemap.xml",
+            f"{self.config.origin}/sitemap_index.xml",
+            f"{self.config.origin}/sitemap-index.xml",
         ]
         candidates.extend(self.config.sitemap_urls)
 
