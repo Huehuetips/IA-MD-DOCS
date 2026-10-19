@@ -71,9 +71,10 @@ class DocumentationCrawler:
                 page.url,
             )
 
-            html = self._fetch_html(page.url)
-            if not html:
+            fetched = self._fetch_html(page.url)
+            if not fetched:
                 continue
+            html, document_url = fetched
 
             if looks_like_xml(page.url, html):
                 with warnings.catch_warnings():
@@ -83,7 +84,7 @@ class DocumentationCrawler:
                 soup = BeautifulSoup(html, "html.parser")
             for node in soup.select("a[href], link[href], area[href], form[action]"):
                 href = node.get("action") if node.name == "form" else node.get("href")
-                normalized = normalize_url(page.url, href)
+                normalized = normalize_url(document_url, href)
                 if not normalized or normalized in seen:
                     continue
                 if self._should_visit(normalized):
@@ -108,11 +109,14 @@ class DocumentationCrawler:
         logger.info("Crawler finalizado. Visitadas=%s seleccionadas=%s", len(visited), len(selected))
         return selected
 
-    def _fetch_html(self, url: str) -> str | None:
+    def _fetch_html(self, url: str) -> tuple[str, str] | None:
+        """Devuelve (html, url_real). La URL real es la final tras redirecciones y conserva
+        la barra final: los enlaces relativos deben resolverse contra ella, no contra la
+        URL canonicalizada (que quita la barra y hace subir un nivel cada enlace relativo)."""
         try:
             response = self.session.get(url, timeout=self.config.timeout_seconds)
             response.raise_for_status()
-            return response.text
+            return response.text, response.url
         except requests.RequestException as exc:
             logger.warning("No se pudo visitar %s: %s", url, exc)
             return None
