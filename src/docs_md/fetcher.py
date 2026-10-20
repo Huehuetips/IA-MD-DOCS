@@ -35,8 +35,13 @@ class PlaywrightFetcher:
         self.config = config
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
+        self._unavailable_reason: str | None = None
 
     def fetch(self, url: str) -> str:
+        if self._unavailable_reason is not None:
+            # Sin navegador no tiene sentido reintentar por cada URL: el fallo se
+            # reporta con su motivo y las páginas siguen con requests.
+            raise RuntimeError(self._unavailable_reason)
         browser = self._get_browser()
         logger.debug("HTTP GET via Playwright: %s", url)
         page = browser.new_page(user_agent=self.config.user_agent)
@@ -60,6 +65,17 @@ class PlaywrightFetcher:
     def _get_browser(self) -> Browser:
         if self._browser is None:
             logger.info("Inicializando navegador headless de Playwright.")
-            self._playwright = sync_playwright().start()
-            self._browser = self._playwright.chromium.launch(headless=True)
+            playwright = sync_playwright().start()
+            try:
+                self._browser = playwright.chromium.launch(headless=True)
+            except Exception as exc:
+                # Si el lanzamiento falla y el runtime queda vivo, el siguiente intento
+                # reporta "Sync API inside the asyncio loop". Hay que detenerlo aquí.
+                playwright.stop()
+                self._unavailable_reason = (
+                    "Playwright no disponible (ejecuta `python -m playwright install chromium`): "
+                    f"{str(exc).splitlines()[0]}"
+                )
+                raise RuntimeError(self._unavailable_reason) from exc
+            self._playwright = playwright
         return self._browser

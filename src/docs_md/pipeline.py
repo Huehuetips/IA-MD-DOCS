@@ -154,7 +154,9 @@ class DocumentationPipeline:
             logger.debug("Recursos de Playwright cerrados.")
 
         documents: list[ExtractedDocument] = []
-        ranked_candidates = sorted(candidates, key=lambda item: item[0], reverse=True)
+        ranked_candidates = self._unique_by_content(
+            sorted(candidates, key=lambda item: item[0], reverse=True)
+        )
         logger.info("Escribiendo documentos finales. Candidatos rankeados=%s", len(ranked_candidates))
         for rank, (score, document) in enumerate(ranked_candidates, start=1):
             if document.markdown:
@@ -176,6 +178,24 @@ class DocumentationPipeline:
         cache_path = self.cache.save()
         logger.info("Cache manifest guardado en %s", cache_path)
         return documents, index_path
+
+    @staticmethod
+    def _unique_by_content(
+        ranked: list[tuple[int, ExtractedDocument]],
+    ) -> list[tuple[int, ExtractedDocument]]:
+        # El mismo contenido llega por varias URLs (p. ej. /en/stable/ y /en/latest/):
+        # conserva solo la de mayor puntaje, que ya viene primera en `ranked`.
+        seen: set[str] = set()
+        unique: list[tuple[int, ExtractedDocument]] = []
+        for score, document in ranked:
+            key = document.content_hash
+            if key and key in seen:
+                logger.info("Documento duplicado omitido (mismo contenido): %s", document.url)
+                continue
+            if key:
+                seen.add(key)
+            unique.append((score, document))
+        return unique
 
     def _should_retry_with_playwright(self, main_html: str, headings: list[str]) -> bool:
         if self.config.render_mode == "requests":
